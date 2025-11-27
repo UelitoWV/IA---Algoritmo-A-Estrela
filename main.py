@@ -38,7 +38,7 @@ class NQueens:
         print(f"Procurando uma solução aleatória para N={self.n}...")
 
         while pq.is_not_empty:
-            f, g, current_board = pq.pop(pq)
+            f, g, current_board = pq.pop()
             row = len(current_board)
 
             if row == self.n:
