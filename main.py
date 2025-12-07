@@ -93,8 +93,8 @@ class NQueensCSP:
     
     def combined_heuristic(self, assignment, unassigned_rows):
         """
-        Combina VRM e Grau:
-        1. Usa VRM como principal
+        Combina MRV e Degree:
+        1. Usa MRV como principal
         2. Em caso de empate, usa Degree como desempate
         """
         if not self.use_mrv and not self.use_degree:
@@ -123,7 +123,7 @@ class NQueensCSP:
     
     def lcv_order_values(self, assignment, row, available_cols):
         """
-        Heurística VMR (Least Constraining Value)
+        Heurística LCV (Least Constraining Value)
         Ordena as colunas da MENOS restritiva para a MAIS restritiva.
         Prefere valores que deixam mais opções para o futuro.
         """
@@ -216,7 +216,7 @@ class NQueensCSP:
         # Obtém colunas disponíveis
         available_cols = self.get_available_columns(assignment, row)
         
-        # Forward Checking: se não há colunas disponíveis, falha
+        # Forward Checking (Base): Se a variável atual não tem valores, falha
         if not available_cols:
             self.backtracks += 1
             return None
@@ -239,14 +239,15 @@ class NQueensCSP:
             self.node_labels[new_state] = f"Q{row}:{col}"
             self.exploration_order[new_state] = self.nodes_explored
             
-            # Forward Checking: verifica se linhas futuras ainda têm opções
+            # --- FORWARD CHECKING ---
+            # Verifica se essa escolha "matou" alguma linha futura
             new_unassigned = unassigned_rows - {row}
-            
-            # Verifica se alguma linha futura ficou sem opções
             forward_check_ok = True
+            
             for future_row in new_unassigned:
+                # Se uma linha futura ficou sem opções válidas...
                 if not self.get_available_columns(new_assignment, future_row):
-                    forward_check_ok = False
+                    forward_check_ok = False # ...então este caminho é inválido.
                     break
             
             if forward_check_ok:
@@ -261,7 +262,7 @@ class NQueensCSP:
         return None
     
     def plot_search_tree(self):
-        """Plota a árvore de busca"""
+        """Plota a árvore de busca (CORRIGIDO)"""
         if self.G.number_of_nodes() == 0:
             print("Nenhuma árvore para plotar")
             return
@@ -279,28 +280,29 @@ class NQueensCSP:
             else:
                 updated_labels[node] = self.node_labels.get(node, "")
         
-        # --- CORREÇÃO AQUI ---
-        # 1. Convertemos a solução (dict) para o formato de tupla usado no grafo
-        # Ex: de {0:1, 1:3} para ((0,1), (1,3))
+        # CORREÇÃO: Prepara lista de nós que fazem parte do caminho da solução
         solution_path_nodes = []
         if self.solution:
-            # Ordena pelos itens (row, col) para garantir match com os nós do grafo
+            # Converte o dict {row:col} para lista de tuplas [(row,col), ...] ordenada
             sol_list = sorted(self.solution.items())
-            # Gera todos os prefixos da solução (caminho da raiz até a folha)
+            # Gera todos os prefixos do caminho
             solution_path_nodes = [tuple(sol_list[:i]) for i in range(1, len(sol_list) + 1)]
 
         # Define cores
         color_map = []
         for node in self.G:
+            # Verde escuro: Solução Final
             if self.solution and node == tuple(sorted(self.solution.items())):
-                color_map.append('#4CAF50')  # Verde - solução final
+                color_map.append('#4CAF50')
+            # Vermelho: Início
             elif len(node) == 0:
-                color_map.append('#FF5722')  # Vermelho - início
-            # Verifica se o nó atual faz parte do caminho da solução
+                color_map.append('#FF5722')
+            # Verde claro: Faz parte do caminho da solução
             elif node in solution_path_nodes:
-                color_map.append('#81C784')  # Verde claro - caminho da solução
+                color_map.append('#81C784')
+            # Azul: Caminhos descartados
             else:
-                color_map.append('#89CFF0')  # Azul - outros nós
+                color_map.append('#89CFF0')
         
         nx.draw(self.G, pos, with_labels=True, labels=updated_labels,
                 node_size=3500, node_color=color_map, font_size=7,
@@ -334,17 +336,17 @@ class NQueensCSP:
         # Plota as rainhas
         for row, col in self.solution.items():
             ax.text(col, row, '♛', fontsize=40, ha='center', va='center',
-                   color='gold', weight='bold')
+                    color='gold', weight='bold')
         
         ax.set_title(f"Solução N-Rainhas (N={self.n})\n"
-                    f"CSP + Forward Checking", fontsize=14)
+                     f"CSP + Forward Checking", fontsize=14)
         ax.axis('off')
         plt.tight_layout()
         plt.show()
     
     def _hierarchy_pos(self, G, root, width=1., vert_gap=0.2, vert_loc=0,
-                      xcenter=0.5, pos=None, parent=None):
-        """Calcula posições hierárquicas para o grafo"""
+                       xcenter=0.5, pos=None, parent=None):
+        """Calcula posições hierárquicas para o grafo (Layout de árvore)"""
         if pos is None:
             pos = {root: (xcenter, vert_loc)}
         else:
@@ -360,8 +362,8 @@ class NQueensCSP:
             for child in children:
                 nextx += dx
                 pos = self._hierarchy_pos(G, child, width=dx, vert_gap=vert_gap,
-                                         vert_loc=vert_loc - vert_gap,
-                                         xcenter=nextx, pos=pos, parent=root)
+                                          vert_loc=vert_loc - vert_gap,
+                                          xcenter=nextx, pos=pos, parent=root)
         return pos
 
 
@@ -369,12 +371,12 @@ def compare_heuristics(n=8):
     """Compara diferentes combinações de heurísticas"""
     configs = [
         ("Sem heurísticas", False, False, False),
-        ("Apenas VRM", True, False, False),
-        ("Apenas Grau", False, True, False),
-        ("Apenas VMR", False, False, True),
-        ("VRM + Grau", True, True, False),
-        ("VRM + VMR", True, False, True),
-        ("VRM + Grau + VMR", True, True, True),
+        ("Apenas MRV", True, False, False),
+        ("Apenas Degree", False, True, False),
+        ("Apenas LCV", False, False, True),
+        ("MRV + Degree", True, True, False),
+        ("MRV + LCV", True, False, True),
+        ("MRV + Degree + LCV", True, True, True),
     ]
     
     print(f"\n{'='*80}")
@@ -412,13 +414,17 @@ def compare_heuristics(n=8):
 
 
 if __name__ == "__main__":
-    # Exemplo 1: Resolver com todas as heurísticas
-    print("🎯 Resolvendo N=8 com TODAS as heurísticas")
-    solver = NQueensCSP(8, use_mrv=False, use_degree=False, use_lcv=False)
+    # Exemplo Principal: Resolver e Plotar
+    print("🎯 Resolvendo N=8 com TODAS as heurísticas e Forward Checking")
+    # Nota: Para visualização em árvore ficar legível, N=4 ou N=5 é melhor. 
+    # Para N=8 a árvore fica muito grande na tela.
+    solver = NQueensCSP(8, use_mrv=True, use_degree=True, use_lcv=True)
     solver.solve()
+    
+    # Plota os gráficos
     solver.plot_search_tree()
     solver.plot_chessboard()
     
-    # Exemplo 2: Comparar diferentes combinações
-    print("\n📊 Comparando diferentes combinações de heurísticas...")
-    compare_heuristics(8)
+    # Exemplo 2: Comparar heurísticas (Opcional)
+    # print("\n📊 Comparando diferentes combinações de heurísticas...")
+    # compare_heuristics(8)
