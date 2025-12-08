@@ -4,11 +4,11 @@ import numpy as np
 import time
 
 class NQueensCSP:
-    def __init__(self, n, use_mrv=True, use_degree=True, use_lcv=True):
+    def __init__(self, n, use_vrm=True, use_grau=True, use_vmr=True):
         self.n = n
-        self.use_mrv = use_mrv
-        self.use_degree = use_degree
-        self.use_lcv = use_lcv
+        self.use_vrm = use_vrm
+        self.use_grau = use_grau
+        self.use_vmr = use_vmr
         
         # Estatísticas
         self.nodes_explored = 0
@@ -20,120 +20,120 @@ class NQueensCSP:
         self.node_labels = {}
         self.exploration_order = {}
         
-        # Domínios: assignment[row] = col (ou None se não atribuído)
+        # Domínios: assignment[linha] = coluna (ou None se não atribuído)
         self.assignment = {}
         
-    def is_safe_assignment(self, assignment, row, col):
+    def is_safe_assignment(self, assignment, linha, col):
         """
-        Verifica se é seguro colocar uma rainha em (row, col)
-        dado o assignment atual (dicionário row->col)
+        Verifica se é seguro colocar uma rainha em (linha, coluna)
+        dado o assignment atual (dicionário linha -> coluna)
         """
-        for assigned_row, assigned_col in assignment.items():
+        for assigned_linha, assigned_col in assignment.items():
             # Mesma coluna
             if assigned_col == col:
                 return False
             
             # Mesma diagonal
-            if abs(assigned_row - row) == abs(assigned_col - col):
+            if abs(assigned_linha - linha) == abs(assigned_col - col):
                 return False
         
         return True
     
-    def get_available_columns(self, assignment, row):
+    def get_available_colunas(self, assignment, linha):
         """Retorna colunas disponíveis para uma linha dado o assignment"""
         available = []
         for col in range(self.n):
-            if self.is_safe_assignment(assignment, row, col):
+            if self.is_safe_assignment(assignment, linha, col):
                 available.append(col)
         return available
     
-    def count_conflicts(self, assignment, row, col):
+    def count_conflicts(self, assignment, linha, col):
         """
         Conta quantas posições futuras serão bloqueadas se colocarmos
-        uma rainha em (row, col). Usado pela heurística LCV.
+        uma rainha em (linha, coluna). Usado pela heurística VMR (Valor Menos Restritivo).
         """
         conflicts = 0
         temp_assignment = assignment.copy()
-        temp_assignment[row] = col
+        temp_assignment[linha] = col
         
         # Para cada linha não atribuída
-        for future_row in range(self.n):
-            if future_row not in temp_assignment:
+        for future_linha in range(self.n):
+            if future_linha not in temp_assignment:
                 for future_col in range(self.n):
-                    if not self.is_safe_assignment(temp_assignment, future_row, future_col):
+                    if not self.is_safe_assignment(temp_assignment, future_linha, future_col):
                         conflicts += 1
         
         return conflicts
     
-    def mrv_heuristic(self, assignment, unassigned_rows):
+    def vrm_heuristic(self, assignment, unassigned_linhas):
         """
-        Heurística MRV (Minimum Remaining Values)
+        Heurística VRM (Valores Mínimos Restantes)
         Retorna a linha com MENOS valores disponíveis.
         "Fail-first" - se vai falhar, falhe cedo.
         """
         min_values = float('inf')
-        best_row = None
+        best_linha = None
         
-        for row in unassigned_rows:
-            available = len(self.get_available_columns(assignment, row))
+        for linha in unassigned_linhas:
+            available = len(self.get_available_colunas(assignment, linha))
             if available < min_values:
                 min_values = available
-                best_row = row
+                best_linha = linha
         
-        return best_row
+        return best_linha
     
-    def degree_heuristic(self, board, unassigned_rows):
+    def grau_heuristic(self, board, unassigned_linhas):
         """
-        Heurística de Grau (Degree Heuristic)
+        Heurística de Grau
         Retorna a linha que MAIS restringe outras linhas.
         No N-Rainhas, quanto mais cedo na sequência, mais restringe.
         """
         # A linha mais próxima do topo restringe mais linhas futuras
-        return min(unassigned_rows)
+        return min(unassigned_linhas)
     
-    def combined_heuristic(self, assignment, unassigned_rows):
+    def combined_heuristic(self, assignment, unassigned_linhas):
         """
-        Combina MRV e Degree:
-        1. Usa MRV como principal
-        2. Em caso de empate, usa Degree como desempate
+        Combina VRM (Valores Restantes Mínimos) e Grau:
+        1. Usa VRM como principal
+        2. Em caso de empate, usa grau como desempate
         """
-        if not self.use_mrv and not self.use_degree:
-            return min(unassigned_rows)  # Ordem padrão
+        if not self.use_vrm and not self.use_grau:
+            return min(unassigned_linhas)  # Ordem padrão
         
-        if self.use_mrv and not self.use_degree:
-            return self.mrv_heuristic(assignment, unassigned_rows)
+        if self.use_vrm and not self.use_grau:
+            return self.vrm_heuristic(assignment, unassigned_linhas)
         
-        if not self.use_mrv and self.use_degree:
-            return self.degree_heuristic(assignment, unassigned_rows)
+        if not self.use_vrm and self.use_grau:
+            return self.grau_heuristic(assignment, unassigned_linhas)
         
-        # Ambas habilitadas: MRV com desempate por Degree
+        # Ambas habilitadas: VRM (Valores Restantes Mínimos) com desempate por grau
         min_values = float('inf')
         candidates = []
         
-        for row in unassigned_rows:
-            available = len(self.get_available_columns(assignment, row))
+        for linha in unassigned_linhas:
+            available = len(self.get_available_colunas(assignment, linha))
             if available < min_values:
                 min_values = available
-                candidates = [row]
+                candidates = [linha]
             elif available == min_values:
-                candidates.append(row)
+                candidates.append(linha)
         
-        # Se há empate, usa degree (escolhe a linha mais cedo)
+        # Se há empate, usa grau (escolhe a linha mais cedo)
         return min(candidates)
     
-    def lcv_order_values(self, assignment, row, available_cols):
+    def vmr_order_values(self, assignment, linha, available_cols):
         """
-        Heurística LCV (Least Constraining Value)
+        Heurística VMR (Valor Menos Restritivo)
         Ordena as colunas da MENOS restritiva para a MAIS restritiva.
         Prefere valores que deixam mais opções para o futuro.
         """
-        if not self.use_lcv:
+        if not self.use_vmr:
             return available_cols
         
         # Calcula quantos conflitos cada coluna causa
         col_conflicts = []
         for col in available_cols:
-            conflicts = self.count_conflicts(assignment, row, col)
+            conflicts = self.count_conflicts(assignment, linha, col)
             col_conflicts.append((col, conflicts))
         
         # Ordena por número de conflitos (menor primeiro)
@@ -142,10 +142,10 @@ class NQueensCSP:
         return [col for col, _ in col_conflicts]
     
     def solve(self):
-        """Resolve usando backtracking com forward checking"""
+        """Resolve usando backtracking com Forward Checking"""
         print(f"\n{'='*70}")
         print(f"Resolvendo N-Rainhas (N={self.n}) com CSP + Forward Checking")
-        print(f"Heurísticas ativas: MRV={self.use_mrv}, Degree={self.use_degree}, LCV={self.use_lcv}")
+        print(f"Heurísticas ativas: vrm={self.use_vrm}, grau={self.use_grau}, vmr={self.use_vmr}")
         print(f"{'='*70}\n")
         
         start_time = time.time()
@@ -169,16 +169,16 @@ class NQueensCSP:
             
             # Valida a solução
             if self._validate_solution(result):
-                print("✓ Solução validada - sem conflitos!")
+                print("Solução validada - sem conflitos!")
             else:
-                print("✗ ERRO: Solução tem conflitos!")
+                print("ERRO: Solução tem conflitos!")
         else:
-            print(f"\n❌ Nenhuma solução encontrada")
+            print(f"\nNenhuma solução encontrada")
         
-        print(f"\n📊 Estatísticas:")
-        print(f"   • Nós explorados: {self.nodes_explored}")
-        print(f"   • Backtracks: {self.backtracks}")
-        print(f"   • Tempo: {elapsed:.2f}ms")
+        print(f"\nEstatísticas:")
+        print(f"Nós explorados: {self.nodes_explored}")
+        print(f"Backtracks: {self.backtracks}")
+        print(f"Tempo: {elapsed:.2f}ms")
         print(f"{'='*70}\n")
         
         return result
@@ -202,8 +202,8 @@ class NQueensCSP:
         
         return True
     
-    def _backtrack(self, assignment, unassigned_rows, parent_state):
-        """Backtracking recursivo com forward checking"""
+    def _backtrack(self, assignment, unassigned_linhas, parent_state):
+        """Backtracking recursivo com Forward Checking"""
         self.nodes_explored += 1
         
         # Caso base: todas as rainhas colocadas
@@ -211,24 +211,24 @@ class NQueensCSP:
             return assignment
         
         # Seleciona próxima linha usando heurística combinada
-        row = self.combined_heuristic(assignment, unassigned_rows)
+        linha = self.combined_heuristic(assignment, unassigned_linhas)
         
         # Obtém colunas disponíveis
-        available_cols = self.get_available_columns(assignment, row)
+        available_cols = self.get_available_colunas(assignment, linha)
         
         # Forward Checking (Base): Se a variável atual não tem valores, falha
         if not available_cols:
             self.backtracks += 1
             return None
         
-        # Ordena colunas usando LCV
-        ordered_cols = self.lcv_order_values(assignment, row, available_cols)
+        # Ordena colunas usando VMR (Valor Menos Restritivo)
+        ordered_cols = self.vmr_order_values(assignment, linha, available_cols)
         
         # Tenta cada coluna
         for col in ordered_cols:
             # Cria novo assignment
             new_assignment = assignment.copy()
-            new_assignment[row] = col
+            new_assignment[linha] = col
             
             # Cria estado para visualização (tupla ordenada pelas linhas atribuídas)
             state_list = [(r, new_assignment[r]) for r in sorted(new_assignment.keys())]
@@ -236,17 +236,17 @@ class NQueensCSP:
             
             # Adiciona ao grafo de visualização
             self.G.add_edge(parent_state, new_state)
-            self.node_labels[new_state] = f"Q{row}:{col}"
+            self.node_labels[new_state] = f"Q{linha}:{col}"
             self.exploration_order[new_state] = self.nodes_explored
             
             # --- FORWARD CHECKING ---
             # Verifica se essa escolha "matou" alguma linha futura
-            new_unassigned = unassigned_rows - {row}
+            new_unassigned = unassigned_linhas - {linha}
             forward_check_ok = True
             
-            for future_row in new_unassigned:
+            for future_linha in new_unassigned:
                 # Se uma linha futura ficou sem opções válidas...
-                if not self.get_available_columns(new_assignment, future_row):
+                if not self.get_available_colunas(new_assignment, future_linha):
                     forward_check_ok = False # ...então este caminho é inválido.
                     break
             
@@ -262,7 +262,7 @@ class NQueensCSP:
         return None
     
     def plot_search_tree(self):
-        """Plota a árvore de busca (CORRIGIDO)"""
+        """Plota a árvore de busca"""
         if self.G.number_of_nodes() == 0:
             print("Nenhuma árvore para plotar")
             return
@@ -280,10 +280,10 @@ class NQueensCSP:
             else:
                 updated_labels[node] = self.node_labels.get(node, "")
         
-        # CORREÇÃO: Prepara lista de nós que fazem parte do caminho da solução
+        # Prepara lista de nós que fazem parte do caminho da solução
         solution_path_nodes = []
         if self.solution:
-            # Converte o dict {row:col} para lista de tuplas [(row,col), ...] ordenada
+            # Converte o dict {linha:coluna} para lista de tuplas [(linha,coluna), ...] ordenada
             sol_list = sorted(self.solution.items())
             # Gera todos os prefixos do caminho
             solution_path_nodes = [tuple(sol_list[:i]) for i in range(1, len(sol_list) + 1)]
@@ -308,9 +308,9 @@ class NQueensCSP:
                 node_size=3500, node_color=color_map, font_size=7,
                 node_shape="s", edge_color="gray", arrows=True)
         
-        heuristics_text = f"MRV: {'✓' if self.use_mrv else '✗'}, " \
-                          f"Degree: {'✓' if self.use_degree else '✗'}, " \
-                          f"LCV: {'✓' if self.use_lcv else '✗'}"
+        heuristics_text = f"vrm: {'✓' if self.use_vrm else 'X'}, " \
+                          f"grau: {'✓' if self.use_grau else 'X'}, " \
+                          f"vmr: {'✓' if self.use_vmr else 'X'}"
         
         plt.title(f"Árvore CSP com Forward Checking (N={self.n})\n"
                  f"{heuristics_text}\n"
@@ -334,8 +334,8 @@ class NQueensCSP:
         ax.imshow(board_img, cmap='gray', vmin=0, vmax=1)
         
         # Plota as rainhas
-        for row, col in self.solution.items():
-            ax.text(col, row, '♛', fontsize=40, ha='center', va='center',
+        for linha, col in self.solution.items():
+            ax.text(col, linha, '♛', fontsize=40, ha='center', va='center',
                     color='gold', weight='bold')
         
         ax.set_title(f"Solução N-Rainhas (N={self.n})\n"
@@ -371,12 +371,12 @@ def compare_heuristics(n=8):
     """Compara diferentes combinações de heurísticas"""
     configs = [
         ("Sem heurísticas", False, False, False),
-        ("Apenas MRV", True, False, False),
-        ("Apenas Degree", False, True, False),
-        ("Apenas LCV", False, False, True),
-        ("MRV + Degree", True, True, False),
-        ("MRV + LCV", True, False, True),
-        ("MRV + Degree + LCV", True, True, True),
+        ("Apenas VRM", True, False, False),
+        ("Apenas Grau", False, True, False),
+        ("Apenas VMR", False, False, True),
+        ("VRM + Grau", True, True, False),
+        ("VRM + VMR", True, False, True),
+        ("VRM + Grau + VMR", True, True, True),
     ]
     
     print(f"\n{'='*80}")
@@ -385,8 +385,8 @@ def compare_heuristics(n=8):
     
     results = []
     
-    for name, mrv, degree, lcv in configs:
-        solver = NQueensCSP(n, use_mrv=mrv, use_degree=degree, use_lcv=lcv)
+    for name, vrm, grau, vmr in configs:
+        solver = NQueensCSP(n, use_vrm=vrm, use_grau=grau, use_vmr=vmr)
         
         start = time.time()
         solution = solver.solve()
@@ -406,7 +406,7 @@ def compare_heuristics(n=8):
     print(f"{'='*80}")
     
     for r in results:
-        status = '✓' if r['found'] else '✗'
+        status = '✓' if r['found'] else 'X'
         print(f"{r['name']:<30} {r['nodes']:<10} {r['backtracks']:<12} "
               f"{r['time']:<12.2f} {status}")
     
@@ -415,10 +415,10 @@ def compare_heuristics(n=8):
 
 if __name__ == "__main__":
     # Exemplo Principal: Resolver e Plotar
-    print("🎯 Resolvendo N=8 com TODAS as heurísticas e Forward Checking")
+    print("Resolvendo N=8 com TODAS as heurísticas e Forward Checking")
     # Nota: Para visualização em árvore ficar legível, N=4 ou N=5 é melhor. 
     # Para N=8 a árvore fica muito grande na tela.
-    solver = NQueensCSP(8, use_mrv=True, use_degree=True, use_lcv=True)
+    solver = NQueensCSP(8, use_vrm=True, use_grau=True, use_vmr=True)
     solver.solve()
     
     # Plota os gráficos
@@ -426,5 +426,5 @@ if __name__ == "__main__":
     solver.plot_chessboard()
     
     # Exemplo 2: Comparar heurísticas (Opcional)
-    # print("\n📊 Comparando diferentes combinações de heurísticas...")
+    #print("\nComparando diferentes combinações de heurísticas...")
     # compare_heuristics(8)
