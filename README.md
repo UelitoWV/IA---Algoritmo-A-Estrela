@@ -26,7 +26,7 @@ Ordena os valores (colunas) da **menos restritiva para a mais restritiva**, tent
 ### Forward Checking
 Após cada atribuição, verifica se alguma variável futura ficou sem valores válidos. Se sim, realiza backtrack imediatamente sem explorar esse ramo.
 
-## 🔧 Pré-requisitos
+## Pré-requisitos
 
 Para executar este projeto, você precisará ter instalado:
 
@@ -92,7 +92,7 @@ Após tudo estar devidamente instalado, inicialize o `main.py` para observar o a
 python main.py
 ```
 
-## 📊 Exemplos de Uso
+## Exemplos de Uso
 
 ### Exemplo 1: Resolver N=8 com todas as heurísticas
 
