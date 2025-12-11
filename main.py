@@ -165,7 +165,7 @@ class NQueensCSP:
             self.solution = result
             # Converte dicionário para tupla ordenada
             solution_tuple = tuple(result[i] for i in range(self.n))
-            print(f"\n✅ Solução encontrada: {solution_tuple}")
+            print(f"\nSolução encontrada: {solution_tuple}")
             
             # Valida a solução
             if self._validate_solution(result):
